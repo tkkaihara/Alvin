@@ -7,13 +7,33 @@ import pandas as pd
 
 def get_symbols():
     holdings = open('data/qqq.csv').readlines()
-    symbols_list = [holding.split(',')[2].strip() for holding in holdings][1:]
+    symbols_list = [
+        'UVXY', 'SVXY', 'SPPI', 'FSLY', 'PINS', 'TWTR', 'CHGG', 'ETSY', 'CVNA',
+        'LPCN', 'AMD', 'BA', 'MU', 'ADMP', 'SQQQ', 'SPXS', 'LABU', 'LABD',
+        'AAL', 'UAL', 'DAL', 'JBLU', 'LUV', 'SAVE', 'BA', 'SNAP', 'NIO',
+        'AAPL', 'MSFT', 'FBIO', 'SPPI', 'KALA', 'DOGZ', 'MRIN', 'SCKT', 'AMZN',
+        'FB', 'GOOGL', 'GOOG', 'TSLA', 'NVDA', 'PYPL', 'ADBE', 'INTC', 'NFLX',
+        'CMCSA', 'PEP', 'COST', 'CSCO', 'AVGO', 'QCOM', 'TMUS', 'AMGN', 'TXN',
+        'CHTR', 'SBUX', 'ZM', 'AMD', 'INTU', 'ISRG', 'MDLZ', 'JD', 'GILD',
+        'BKNG', 'FISV', 'MELI', 'ATVI', 'ADP', 'CSX', 'REGN', 'MU', 'AMAT',
+        'ADSK', 'VRTX', 'LRCX', 'ILMN', 'ADI', 'BIIB', 'MNST', 'EXC', 'KDP',
+        'LULU', 'DOCU', 'WDAY', 'CTSH', 'KHC', 'NXPI', 'BIDU', 'XEL', 'DXCM',
+        'EBAY', 'EA', 'IDXX', 'CTAS', 'SNPS', 'ORLY', 'SGEN', 'SPLK', 'ROST',
+        'WBA', 'KLAC', 'NTES', 'PCAR', 'CDNS', 'MAR', 'VRSK', 'PAYX', 'ASML',
+        'ANSS', 'MCHP', 'XLNX', 'MRNA', 'CPRT', 'ALGN', 'PDD', 'ALXN', 'SIRI',
+        'FAST', 'SWKS', 'VRSN', 'DLTR', 'CERN', 'MXIM', 'INCY', 'TTWO', 'CDW',
+        'CHKP', 'CTXS', 'TCOM', 'BMRN', 'ULTA', 'EXPE', 'FOXA', 'LBTYK', 'FOX',
+        'LBTYA'
+    ]
     symbols = ','.join(symbols_list)
     return symbols_list, symbols
 
 
+get_symbols()
+
+
 def write_min_bars(symbols):
-    minute_bars_url = '{}/1Min?symbols={}&limit=100'.format(BARS_URL, symbols)
+    minute_bars_url = '{}/5Min?symbols={}&limit=100'.format(BARS_URL, symbols)
     r = requests.get(minute_bars_url, headers=HEADERS)
     ohlc_data = r.json()
 
@@ -39,12 +59,16 @@ def write_technical_analysis(symbols_list):
                                     index_col='Timestamp')
 
             sma6 = btalib.sma(dataframe, period=6)
+            sma9 = btalib.sma(dataframe, period=9)
             sma10 = btalib.sma(dataframe, period=10)
+            sma20 = btalib.sma(dataframe, period=20)
             rsi = btalib.rsi(dataframe)
             macd = btalib.macd(dataframe)
 
             dataframe['SMA-6'] = sma6.df
+            dataframe['SMA-9'] = sma9.df
             dataframe['SMA-10'] = sma10.df
+            dataframe['SMA-20'] = sma20.df
             dataframe['RSI'] = rsi.df
             dataframe['MACD'] = macd.df['macd']
             dataframe['Signal'] = macd.df['signal']
