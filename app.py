@@ -6,17 +6,17 @@ import time
 while True:
     # Checking if market is open (all time is in to EST)
     is_open = market_open()['is_open']
-    time_until_open_sec = market_open()['time_until_open_sec'] + 2
+    time_until_open_sec = market_open()['time_until_open_sec']
     time_until_close_sec = market_open()['time_until_close_sec']
     desired_selloff_time_sec = 15 * 60
 
     if is_open:
         if time_until_close_sec > desired_selloff_time_sec:
             # Current buying power
-            buying_power = float(get_account()['buying_power'])
+            buying_power = float(get_account()['daytrading_buying_power'])
             # Writing all positions and orders
-            write_submitted_orders()  # Orders that are in Alpacas' system
-            write_positions()
+            write_submitted_orders()
+            write_positions()  # Positions that are in Alpacas' system
             # Extracting and setting symbols to analyze
             symbols_list = (get_symbols()[0])
             symbols = (get_symbols()[1])

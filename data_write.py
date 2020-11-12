@@ -5,31 +5,31 @@ import btalib
 import pandas as pd
 
 
-def get_symbols():
-    holdings = open('data/qqq.csv').readlines()
+def get_all_symbols():
+    r = requests.get(ASSETS_URL, headers=HEADERS)
+    assets = r.json()
     symbols_list = [
-        'UVXY', 'SVXY', 'SPPI', 'FSLY', 'PINS', 'TWTR', 'CHGG', 'ETSY', 'CVNA',
-        'LPCN', 'AMD', 'BA', 'MU', 'ADMP', 'SQQQ', 'SPXS', 'LABU', 'LABD',
-        'AAL', 'UAL', 'DAL', 'JBLU', 'LUV', 'SAVE', 'BA', 'SNAP', 'NIO',
-        'AAPL', 'MSFT', 'FBIO', 'SPPI', 'KALA', 'DOGZ', 'MRIN', 'SCKT', 'AMZN',
-        'FB', 'GOOGL', 'GOOG', 'TSLA', 'NVDA', 'PYPL', 'ADBE', 'INTC', 'NFLX',
-        'CMCSA', 'PEP', 'COST', 'CSCO', 'AVGO', 'QCOM', 'TMUS', 'AMGN', 'TXN',
-        'CHTR', 'SBUX', 'ZM', 'AMD', 'INTU', 'ISRG', 'MDLZ', 'JD', 'GILD',
-        'BKNG', 'FISV', 'MELI', 'ATVI', 'ADP', 'CSX', 'REGN', 'MU', 'AMAT',
-        'ADSK', 'VRTX', 'LRCX', 'ILMN', 'ADI', 'BIIB', 'MNST', 'EXC', 'KDP',
-        'LULU', 'DOCU', 'WDAY', 'CTSH', 'KHC', 'NXPI', 'BIDU', 'XEL', 'DXCM',
-        'EBAY', 'EA', 'IDXX', 'CTAS', 'SNPS', 'ORLY', 'SGEN', 'SPLK', 'ROST',
-        'WBA', 'KLAC', 'NTES', 'PCAR', 'CDNS', 'MAR', 'VRSK', 'PAYX', 'ASML',
-        'ANSS', 'MCHP', 'XLNX', 'MRNA', 'CPRT', 'ALGN', 'PDD', 'ALXN', 'SIRI',
-        'FAST', 'SWKS', 'VRSN', 'DLTR', 'CERN', 'MXIM', 'INCY', 'TTWO', 'CDW',
-        'CHKP', 'CTXS', 'TCOM', 'BMRN', 'ULTA', 'EXPE', 'FOXA', 'LBTYK', 'FOX',
-        'LBTYA'
+        asset['symbol'].split(',') for asset in assets
+        if asset['tradable'] == True
     ]
     symbols = ','.join(symbols_list)
     return symbols_list, symbols
 
 
-get_symbols()
+def get_symbols():
+    symbols_list = [
+        'AMD', 'UVXY', 'SVXY', 'SPXL', 'SPXS', 'LABU', 'LABD', 'NIO', 'PYPL',
+        'TWTR', 'UBER', 'LYFT', 'WM', 'FNGU', 'FNGD', 'UCO', 'SCO', 'BLRX',
+        'AAPL', 'GE', 'F', 'CCL', 'BAC', 'RIG', 'MDLZ', 'CLX', 'AMC', 'TRVG',
+        'BA', 'MU', 'PLUG', 'SNDL', 'BABA', 'PTON', 'BYND', 'CRM', 'ZM',
+        'TOUR', 'RDI', 'LIND', 'ITUB', 'CCL', 'TTNP', 'PBR', 'XOM', 'ACB',
+        'UCO', 'SCO', 'DCTH', 'STAF', 'SNES', 'OPGN', 'XPEL', 'BLNK', 'AYTU',
+        'ACHV', 'IPWR', 'DGLY', 'MJ', 'CGC', 'CRON', 'TLRY', 'FTEK', 'FUBO',
+        'NEON', 'NRP', 'KDMN', 'COCP', 'FPRX', 'VXRT', 'ARCT', 'REV', 'BRKS',
+        'GRAY', 'PACB', 'AGR', 'MEOH', 'MPLN', 'PFS', 'RPRX', 'VAC', 'WETF'
+    ]
+    symbols = ','.join(symbols_list)
+    return symbols_list, symbols
 
 
 def write_min_bars(symbols):
@@ -65,13 +65,13 @@ def write_technical_analysis(symbols_list):
             rsi = btalib.rsi(dataframe)
             macd = btalib.macd(dataframe)
 
-            dataframe['SMA-6'] = sma6.df
-            dataframe['SMA-9'] = sma9.df
-            dataframe['SMA-10'] = sma10.df
-            dataframe['SMA-20'] = sma20.df
-            dataframe['RSI'] = rsi.df
-            dataframe['MACD'] = macd.df['macd']
-            dataframe['Signal'] = macd.df['signal']
+            dataframe['SMA-6'] = round(sma6.df, 2)
+            dataframe['SMA-9'] = round(sma9.df, 2)
+            dataframe['SMA-10'] = round(sma10.df, 2)
+            dataframe['SMA-20'] = round(sma20.df, 2)
+            dataframe['RSI'] = round(rsi.df, 2)
+            dataframe['MACD'] = round(macd.df['macd'], 2)
+            dataframe['Signal'] = round(macd.df['signal'], 2)
             dataframe['Histogram'] = macd.df['histogram']
 
             f = open(file_path, 'w+')
