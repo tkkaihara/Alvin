@@ -26,7 +26,9 @@ def get_symbols():
         'UCO', 'SCO', 'DCTH', 'STAF', 'SNES', 'OPGN', 'XPEL', 'BLNK', 'AYTU',
         'ACHV', 'IPWR', 'DGLY', 'MJ', 'CGC', 'CRON', 'TLRY', 'FTEK', 'FUBO',
         'NEON', 'NRP', 'KDMN', 'COCP', 'FPRX', 'VXRT', 'ARCT', 'REV', 'BRKS',
-        'GRAY', 'PACB', 'AGR', 'MEOH', 'MPLN', 'PFS', 'RPRX', 'VAC', 'WETF'
+        'GRAY', 'PACB', 'AGR', 'MEOH', 'MPLN', 'PFS', 'RPRX', 'VAC', 'WETF',
+        'KRMD', 'HBI', 'CHGG', 'GFI', 'CLGX', 'DPZ', 'CTVA', 'NTES', 'ROK',
+        'ROKU', 'DT'
     ]
     symbols = ','.join(symbols_list)
     return symbols_list, symbols
@@ -65,10 +67,10 @@ def write_technical_analysis(symbols_list):
             rsi = btalib.rsi(dataframe)
             macd = btalib.macd(dataframe)
 
-            dataframe['SMA-6'] = round(sma6.df, 2)
-            dataframe['SMA-9'] = round(sma9.df, 2)
-            dataframe['SMA-10'] = round(sma10.df, 2)
-            dataframe['SMA-20'] = round(sma20.df, 2)
+            dataframe['SMA-6'] = round(sma6.df, 3)
+            dataframe['SMA-9'] = round(sma9.df, 3)
+            dataframe['SMA-10'] = round(sma10.df, 3)
+            dataframe['SMA-20'] = round(sma20.df, 3)
             dataframe['RSI'] = round(rsi.df, 2)
             dataframe['MACD'] = round(macd.df['macd'], 2)
             dataframe['Signal'] = round(macd.df['signal'], 2)

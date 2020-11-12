@@ -205,7 +205,7 @@ def determine_order(symbols_list, buying_power):
         SMA6_is_increasing = is_increasing(3, SMA6_index, symbol)
         close_is_decreasing = is_decreasing(4, close_index, symbol)
         close_is_increasing = is_increasing(3, close_index, symbol)
-        histogram_is_increasing = is_increasing(3, histogram_index, symbol)
+        histogram_is_increasing = is_increasing(2, histogram_index, symbol)
         data_sheet = open(f'data/ohlc/{symbol}.csv').readlines()
         last_data_line = [data_line.split(',') for data_line in data_sheet][-1]
         open_indicator = float(last_data_line[open_index])
@@ -216,18 +216,20 @@ def determine_order(symbols_list, buying_power):
         SMA20 = float(last_data_line[SMA20_index])
         RSI = float(last_data_line[RSI_index])
         histogram = float(last_data_line[histogram_index])
-        message = f'{symbol}, RSI = {RSI}, SMA6 Increasing [3] = {SMA6_is_increasing}, Close-SMA9 = {close-SMA9}'
+        message = f'{symbol}, RSI = {RSI}, Histogram Increasing [2] = {histogram_is_increasing}, SMA6-SMA9 = {SMA6-SMA9}, Open-SMA9 = {open_indicator-SMA9}, Open-Close = {open_indicator-close}'
 
-        if RSI < 30 and not in_waitlist:
+        if RSI < 25 and not in_waitlist:
             filename = 'data/waitlist.csv'
             f = open(filename, 'a')
             line = '{},{},{},{}\n'.format(symbol, RSI, close, SMA9)
             f.write(line)
             f.close()
+        elif RSI >= 50 and in_waitlist and not in_positions and not in_orders:
+            remove_from_waitlist(symbol)
         elif in_waitlist:
             if (
-                    open_indicator < close and close > SMA9
-            ) and SMA6_is_increasing and not in_positions and not in_orders:
+                    open_indicator < close and open_indicator > SMA9
+            ) and histogram_is_increasing and SMA6 > SMA20 and SMA6 > SMA9 and RSI < 50 and not in_positions and not in_orders:
                 side = "buy"
                 qty = int(
                     math.ceil(
@@ -235,7 +237,7 @@ def determine_order(symbols_list, buying_power):
                 print(f'Buying {message}')
                 resp = simple_order(symbol, qty, side)
                 print(resp)
-            elif (unrealized_percentage <= -0.4 or
+            elif (unrealized_percentage <= -0.5 or
                   (open_indicator > close
                    and close < SMA9)) and in_positions and not in_orders:
                 side = "sell"
@@ -272,4 +274,11 @@ def sell_all_positions(time_until_close):
         print(f'Selling {symbol}, end of trading clean-up')
         resp = simple_order(symbol, qty, side)
         print(resp)
+        remove_from_waitlist(symbol)
     time.sleep(time_until_close + 10)
+
+
+# Deletes all stocks from the watchlist
+def clear_watchlist(symbols_list):
+    for symbol in symbols_list:
+        remove_from_waitlist(symbol)
