@@ -1,6 +1,7 @@
 from data_write import get_symbols, write_min_bars, write_technical_analysis
-from trade import market_open, get_account, write_positions, write_submitted_orders, determine_order, sell_all_positions, clear_watchlist
+from trade import market_open, get_account, write_positions, write_submitted_orders, determine_order, sell_all_positions, clear_watchlist, clear_lowboys
 from datetime import datetime
+from config import *
 import time
 
 while True:
@@ -29,6 +30,7 @@ while True:
         else:
             write_positions()
             clear_watchlist(symbols_list)
+            clear_lowboys(symbols_list)
             sell_all_positions(time_until_close_sec)
     else:
         # Waiting until market opens

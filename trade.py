@@ -1,5 +1,6 @@
 import requests, json, csv, pause, time, math
 from config import *
+import backtrader as bt
 from datetime import datetime, timedelta
 
 
@@ -187,12 +188,34 @@ def remove_from_waitlist(symbol):
             newfile.write(line)
 
 
-remove_from_waitlist('FTEK')
+def is_in_lowboys(symbol):
+    # create list of symbols in waitlist to compare against
+    data_sheet = open('data/lowboys.csv').readlines()
+    data_lines = [data_line.split(',') for data_line in data_sheet][1:]
+    lowboyslist = []
+    for line in data_lines:
+        lowboyslist.append(line[0])
+    if symbol in lowboyslist:
+        return True
+    else:
+        return False
+
+
+def remove_from_lowboys(symbol):
+    with open('data/lowboys.csv') as oldfile, open('data/temp.csv',
+                                                   'w') as newfile:
+        for line in oldfile:
+            if symbol not in line:
+                newfile.write(line)
+    with open('data/temp.csv') as oldfile, open('data/lowboys.csv',
+                                                'w') as newfile:
+        for line in oldfile:
+            newfile.write(line)
 
 
 def determine_order(symbols_list, buying_power):
-    open_index, low_index, close_index, SMA6_index, SMA9_index, SMA10_index, SMA20_index, RSI_index, MACD_index, signal_index, histogram_index = [
-        1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13
+    open_index, low_index, close_index, SMA6_index, SMA9_index, SMA10_index, SMA20_index, RSI_index, MACD_index, signal_index, histogram_index, delta_SMA6_SMA20_index = [
+        1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14
     ]
     number_of_stocks = len(symbols_list)
 
@@ -200,12 +223,20 @@ def determine_order(symbols_list, buying_power):
         in_orders = is_ordered(symbol)
         in_positions = is_in_positions(symbol)[0]
         in_waitlist = is_in_waitlist(symbol)
+        in_lowboys = is_in_lowboys(symbol)
         unrealized_percentage = float(is_in_positions(symbol)[2])
+        delta_SMA6_SMA20_is_decreasing = is_decreasing(2,
+                                                       delta_SMA6_SMA20_index,
+                                                       symbol)
+        delta_SMA6_SMA20_is_increasing = is_increasing(3,
+                                                       delta_SMA6_SMA20_index,
+                                                       symbol)
         SMA20_is_increasing = is_increasing(3, SMA20_index, symbol)
         SMA6_is_increasing = is_increasing(3, SMA6_index, symbol)
-        close_is_decreasing = is_decreasing(4, close_index, symbol)
-        close_is_increasing = is_increasing(3, close_index, symbol)
-        histogram_is_increasing = is_increasing(2, histogram_index, symbol)
+        close_is_decreasing = is_decreasing(3, close_index, symbol)
+        close_is_increasing = is_increasing(4, close_index, symbol)
+        histogram_is_increasing = is_increasing(3, histogram_index, symbol)
+        histogram_is_decreasing = is_decreasing(2, histogram_index, symbol)
         data_sheet = open(f'data/ohlc/{symbol}.csv').readlines()
         last_data_line = [data_line.split(',') for data_line in data_sheet][-1]
         open_indicator = float(last_data_line[open_index])
@@ -216,30 +247,41 @@ def determine_order(symbols_list, buying_power):
         SMA20 = float(last_data_line[SMA20_index])
         RSI = float(last_data_line[RSI_index])
         histogram = float(last_data_line[histogram_index])
-        message = f'{symbol}, RSI = {RSI}, Histogram Increasing [2] = {histogram_is_increasing}, SMA6-SMA9 = {SMA6-SMA9}, Open-SMA9 = {open_indicator-SMA9}, Open-Close = {open_indicator-close}'
+        delta_SMA6_SMA20 = float(last_data_line[delta_SMA6_SMA20_index])
+        message = f'{symbol}, SMA6-SMA20 = {delta_SMA6_SMA20}, SMA6-SMA20 Increase = {delta_SMA6_SMA20_is_increasing}, Close Increase = {close_is_increasing}'
 
-        if RSI < 25 and not in_waitlist:
-            filename = 'data/waitlist.csv'
+        if RSI < 2 and not in_waitlist and not in_lowboys and not in_positions and not in_orders:
+            filename = 'data/lowboys.csv'
             f = open(filename, 'a')
             line = '{},{},{},{}\n'.format(symbol, RSI, close, SMA9)
             f.write(line)
             f.close()
-        elif RSI >= 50 and in_waitlist and not in_positions and not in_orders:
-            remove_from_waitlist(symbol)
-        elif in_waitlist:
-            if (
-                    open_indicator < close and open_indicator > SMA9
-            ) and histogram_is_increasing and SMA6 > SMA20 and SMA6 > SMA9 and RSI < 50 and not in_positions and not in_orders:
+            side = "buy"
+            qty = int(math.ceil((number_of_stocks / number_of_stocks) / close))
+            print(f'Buying {message}')
+            resp = simple_order(symbol, qty, side)
+            print(resp)
+        elif histogram_is_decreasing and in_lowboys and in_positions and not in_orders:
+            side = "sell"
+            qty = int(is_in_positions(symbol)[1])
+            if qty > 0:
+                print(f'Selling {message}')
+                resp = simple_order(symbol, qty, side)
+                print(resp)
+                remove_from_lowboys(symbol)
+        elif not in_lowboys:
+            if (delta_SMA6_SMA20 > 0 and delta_SMA6_SMA20_is_increasing
+                    and SMA6_is_increasing and SMA20_is_increasing
+                    and close_is_increasing
+                    and close > 5) and not in_positions and not in_orders:
                 side = "buy"
-                qty = int(
-                    math.ceil(
-                        (buying_power / (number_of_stocks / 20)) / close))
+                qty = int(math.ceil((buying_power / number_of_stocks) / close))
                 print(f'Buying {message}')
                 resp = simple_order(symbol, qty, side)
                 print(resp)
-            elif (unrealized_percentage <= -0.5 or
-                  (open_indicator > close
-                   and close < SMA9)) and in_positions and not in_orders:
+            elif (delta_SMA6_SMA20 <= 0 or delta_SMA6_SMA20_is_decreasing
+                  or close_is_decreasing
+                  or close < SMA6) and in_positions and not in_orders:
                 side = "sell"
                 qty = int(is_in_positions(symbol)[1])
                 if qty > 0:
@@ -262,6 +304,96 @@ def determine_order(symbols_list, buying_power):
     time.sleep(60)
 
 
+# Waitlist buy strategy
+# def determine_order(symbols_list, buying_power):
+#     open_index, low_index, close_index, SMA6_index, SMA9_index, SMA10_index, SMA20_index, RSI_index, MACD_index, signal_index, histogram_index = [
+#         1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13
+#     ]
+#     number_of_stocks = len(symbols_list)
+
+#     for symbol in symbols_list:
+#         in_orders = is_ordered(symbol)
+#         in_positions = is_in_positions(symbol)[0]
+#         in_waitlist = is_in_waitlist(symbol)
+#         in_lowboys = is_in_lowboys(symbol)
+#         unrealized_percentage = float(is_in_positions(symbol)[2])
+#         SMA20_is_increasing = is_increasing(3, SMA20_index, symbol)
+#         SMA6_is_increasing = is_increasing(3, SMA6_index, symbol)
+#         close_is_decreasing = is_decreasing(4, close_index, symbol)
+#         close_is_increasing = is_increasing(3, close_index, symbol)
+#         histogram_is_increasing = is_increasing(3, histogram_index, symbol)
+#         histogram_is_decreasing = is_decreasing(2, histogram_index, symbol)
+#         data_sheet = open(f'data/ohlc/{symbol}.csv').readlines()
+#         last_data_line = [data_line.split(',') for data_line in data_sheet][-1]
+#         open_indicator = float(last_data_line[open_index])
+#         close = float(last_data_line[close_index])
+#         SMA6 = float(last_data_line[SMA6_index])
+#         SMA9 = float(last_data_line[SMA9_index])
+#         SMA10 = float(last_data_line[SMA10_index])
+#         SMA20 = float(last_data_line[SMA20_index])
+#         RSI = float(last_data_line[RSI_index])
+#         histogram = float(last_data_line[histogram_index])
+#         message = f'{symbol}, RSI = {RSI}, Histogram Increasing [2] = {histogram_is_increasing}, SMA6-SMA9 = {SMA6-SMA9}, Open-SMA9 = {open_indicator-SMA9}, Open-Close = {open_indicator-close}'
+
+#         if RSI < 2 and not in_waitlist and not in_lowboys and not in_positions and not in_orders:
+#             filename = 'data/lowboys.csv'
+#             f = open(filename, 'a')
+#             line = '{},{},{},{}\n'.format(symbol, RSI, close, SMA9)
+#             f.write(line)
+#             f.close()
+#             side = "buy"
+#             qty = int(math.ceil((buying_power / 4) / close))
+#             print(f'Buying {message}')
+#             resp = simple_order(symbol, qty, side)
+#             print(resp)
+#         elif histogram_is_decreasing and in_lowboys and in_positions and not in_orders:
+#             side = "sell"
+#             qty = int(is_in_positions(symbol)[1])
+#             if qty > 0:
+#                 print(f'Selling {message}')
+#                 resp = simple_order(symbol, qty, side)
+#                 print(resp)
+#                 remove_from_lowboys(symbol)
+#         elif RSI < 40 and not in_waitlist and not in_lowboys:
+#             filename = 'data/waitlist.csv'
+#             f = open(filename, 'a')
+#             line = '{},{},{},{}\n'.format(symbol, RSI, close, SMA9)
+#             f.write(line)
+#             f.close()
+#         elif RSI >= 50 and in_waitlist and not in_lowboys and not in_positions and not in_orders:
+#             remove_from_waitlist(symbol)
+#         elif in_waitlist:
+#             if SMA6 > SMA9 > SMA20 and not in_lowboys and not in_positions and not in_orders:
+#                 side = "buy"
+#                 qty = int(
+#                     math.ceil(
+#                         (buying_power / (number_of_stocks / 20)) / close))
+#                 print(f'Buying {message}')
+#                 resp = simple_order(symbol, qty, side)
+#                 print(resp)
+#             elif unrealized_percentage <= -0.3 or RSI > 60 or SMA6 < SMA9 and not in_lowboys and in_positions and not in_orders:
+#                 side = "sell"
+#                 qty = int(is_in_positions(symbol)[1])
+#                 if qty > 0:
+#                     print(f'Selling {message}')
+#                     resp = simple_order(symbol, qty, side)
+#                     print(resp)
+#                     remove_from_waitlist(symbol)
+#             elif not in_positions and not in_lowboys:
+#                 print(f'Not trading {message}')
+#             elif in_orders and not in_lowboys:
+#                 print(f'{symbol} is in the order queue')
+#             elif in_positions and not in_lowboys:
+#                 print(f'Holding {message}')
+#             else:
+#                 print(
+#                     f'{symbol}, Uncaught exception, {message, SMA6, SMA10, histogram, close}'
+#                 )
+#         else:
+#             print(f'{symbol} RSI = {RSI}')
+#     time.sleep(60)
+
+
 # Sells all positions
 def sell_all_positions(time_until_close):
     positions = open('data/positions.csv').readlines()
@@ -282,3 +414,38 @@ def sell_all_positions(time_until_close):
 def clear_watchlist(symbols_list):
     for symbol in symbols_list:
         remove_from_waitlist(symbol)
+
+
+# Deletes all stocks from the lowboyslist
+def clear_lowboys(symbols_list):
+    for symbol in symbols_list:
+        remove_from_lowboys(symbol)
+
+
+# Backtesting Strategies
+class TestStrategy(bt.Strategy):
+    def __init__(self):
+        self.SMA6, self.SMA9, self.SMA20, self.SMA40 = bt.ind.SMA(
+            period=6), bt.ind.SMA(period=9), bt.ind.SMA(period=20), bt.ind.SMA(
+                period=40)
+        self.RSI = bt.ind.RelativeStrengthIndex()
+        self.close = self.datas[0].close
+        self.open_indicator = self.datas[0].open
+
+    def next(self):
+        size = int(self.broker.getcash() / self.close)
+
+        if self.SMA20 > self.SMA40 and not self.position:
+            self.buy(size=size)
+        if self.SMA40 > self.SMA20 and self.position.size > 0:
+            self.sell(size=self.position.size)
+
+        # if (
+        #         self.open_indicator < self.close
+        #         and self.open_indicator > self.SMA9
+        # ) and self.SMA6 > self.SMA20 and self.SMA6 > self.SMA9 and self.RSI < 40 and not self.position:
+        #     self.buy(size=size)
+        # if self.close < self.SMA9 and self.position.size > 0:
+        #     self.sell(size=self.position.size)
+
+        #  or self.SMA6 < self.SMA20 or self.SMA6 < self.SMA9
